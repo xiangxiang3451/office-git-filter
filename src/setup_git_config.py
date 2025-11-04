@@ -44,6 +44,10 @@ def setup_git_config():
         'git', 'config', 'diff.xlsx.textconv',
         f'python "{diff_wrapper}"'
     ])
+    subprocess.run([
+        'git', 'config', 'diff.pptx.textconv',
+        f'python "{diff_wrapper}"'
+    ])
 
     # 类似的配置其他格式...
     print("Git配置已完成！")

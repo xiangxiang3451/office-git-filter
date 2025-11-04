@@ -31,6 +31,9 @@ class OfficeFilter(BaseFilter):
         elif ext in ['.xls', '.xlsx']:
             return self._use_excel_library(file_path)
 
+        elif ext in ['.ppt', '.pptx']:
+            return self._use_pptx_library(file_path)
+
         return f"[Office文件: {os.path.basename(file_path)}]"
 
     def _use_libreoffice(self, file_path: str) -> str:
@@ -132,3 +135,44 @@ class OfficeFilter(BaseFilter):
             return f"[未安装openpyxl库: {os.path.basename(file_path)}]"
         except Exception as e:
             return f"[处理Excel文件失败: {str(e)}]"
+
+
+    def _use_pptx_library(self, file_path: str) -> str:
+        """使用python-pptx处理PPTX文件"""
+        try:
+            import pptx
+            presentation = pptx.Presentation(file_path)
+            text = []
+
+            print(f"调试: 开始处理PPTX文件 {file_path}", file=sys.stderr)
+
+            for slide_num, slide in enumerate(presentation.slides, 1):
+                text.append(f"=== 幻灯片 {slide_num} ===")
+
+                has_content = False
+
+                # 提取幻灯片标题
+                if slide.shapes.title and slide.shapes.title.text.strip():
+                    text.append(f"标题: {slide.shapes.title.text.strip()}")
+                    has_content = True
+
+                # 提取所有形状中的文本
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        # 跳过标题（已经处理过）
+                        if shape != slide.shapes.title:
+                            text.append(f"内容: {shape.text.strip()}")
+                            has_content = True
+
+                if not has_content:
+                    text.append("(空幻灯片)")
+                text.append("")  # 空行分隔
+
+            result = '\n'.join(text)
+            print(f"调试: PPTX转换结果长度 {len(result)}", file=sys.stderr)
+            return result if result.strip() else f"[PPTX文件无文本内容: {os.path.basename(file_path)}]"
+
+        except ImportError:
+            return f"[未安装python-pptx库: {os.path.basename(file_path)}]"
+        except Exception as e:
+            return f"[处理PPTX文件失败: {str(e)}]"
