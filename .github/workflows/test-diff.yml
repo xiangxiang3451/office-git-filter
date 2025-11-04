@@ -62,49 +62,75 @@ jobs:
         git add .
         git commit -m "Initial commit with test documents"
 
-    - name: Test direct wrapper output
-      run: |
-        echo "=== DIRECT WRAPPER OUTPUT ==="
-        echo ""
-        
-        for file_type in pdf docx xlsx pptx txt; do
-          echo "--- $file_type wrapper raw output ---"
-          python src/git_diff_wrapper.py "examples/test.$file_type"
-          echo ""
-          echo "----------------------------------------"
-          echo ""
-        done
-
-    - name: Create modified versions and test git diff
+    - name: Create modified Office files
       run: |
         cd test_repo
-        echo "=== GIT DIFF OUTPUT AFTER MODIFICATIONS ==="
+        echo "=== CREATING MODIFIED OFFICE FILES ==="
+        
+        # Create modified versions using Python
+        python3 << 'EOF'
+        import sys
+        import os
+        sys.path.append('../src')
+        
+        # For DOCX
+        try:
+            from docx import Document
+            doc = Document('test.docx')
+            doc.add_paragraph("MODIFIED: Additional content for CI diff testing")
+            doc.save('test_modified.docx')
+            print("✓ Modified DOCX created")
+        except Exception as e:
+            print(f"DOCX modification failed: {e}")
+        
+        # For XLSX
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook('test.xlsx')
+            ws = wb.active
+            ws['Z1'] = "MODIFIED: CI Test Content"
+            wb.save('test_modified.xlsx')
+            print("✓ Modified XLSX created")
+        except Exception as e:
+            print(f"XLSX modification failed: {e}")
+        
+        # For PPTX
+        try:
+            from pptx import Presentation
+            prs = Presentation('test.pptx')
+            slide = prs.slides.add_slide(prs.slide_layouts[1])
+            slide.shapes.title.text = "MODIFIED: CI Test Slide"
+            slide.placeholders[1].text = "Additional content for diff testing"
+            prs.save('test_modified.pptx')
+            print("✓ Modified PPTX created")
+        except Exception as e:
+            print(f"PPTX modification failed: {e}")
+        EOF
+        
+        # Replace original files with modified ones
+        [ -f "test_modified.docx" ] && mv test_modified.docx test.docx
+        [ -f "test_modified.xlsx" ] && mv test_modified.xlsx test.xlsx
+        [ -f "test_modified.pptx" ] && mv test_modified.pptx test.pptx
+        
+        # Also modify text file
+        echo "MODIFIED: Additional content for diff testing" >> test.txt
+
+    - name: Test git diff output
+      run: |
+        cd test_repo
+        echo "=== GIT DIFF OUTPUT ==="
         echo ""
         
-        # Modify files to create differences
-        echo "=== MODIFICATIONS ===" >> test.txt
-        echo "Modified content for diff testing" >> test.txt
-        
-        echo ""
-        echo "--- Text File Diff ---"
-        git diff test.txt
+        echo "--- Full Git Diff ---"
+        git diff
         echo ""
         
-        echo "--- PDF File Diff ---"
-        git diff test.pdf
-        echo ""
-        
-        echo "--- DOCX File Diff ---"
-        git diff test.docx
-        echo ""
-        
-        echo "--- XLSX File Diff ---"
-        git diff test.xlsx
-        echo ""
-        
-        echo "--- PPTX File Diff ---"
-        git diff test.pptx
-        echo ""
+        echo "--- Individual File Diffs ---"
+        for file in test.txt test.pdf test.docx test.xlsx test.pptx; do
+          echo "--- $file ---"
+          git diff -- "$file"
+          echo ""
+        done
 
     - name: Test git diff with textconv
       run: |
@@ -113,47 +139,43 @@ jobs:
         echo ""
         
         for file_type in pdf docx xlsx pptx; do
-          echo "--- $file_type diff with textconv ---"
-          git diff --textconv HEAD -- "test.$file_type"
-          echo ""
+          echo "--- $file_type with textconv ---"
+          git diff --textconv -- "test.$file_type"
           echo "----------------------------------------"
           echo ""
         done
 
-    - name: Test staged changes diff
+    - name: Test git diff cached
       run: |
         cd test_repo
-        echo "=== STAGED CHANGES DIFF ==="
+        echo "=== GIT DIFF --CACHED ==="
         echo ""
         
-        # Stage all changes
+        # Stage changes first
         git add .
         
-        echo "--- Staged diff for all files ---"
-        git diff --staged
+        echo "--- Staged changes diff ---"
+        git diff --cached
         echo ""
         
         echo "--- Individual staged diffs ---"
-        for file_type in pdf docx xlsx pptx txt; do
-          if [ -f "test.$file_type" ]; then
-            echo "--- Staged: test.$file_type ---"
-            git diff --staged -- "test.$file_type"
-            echo ""
-          fi
+        for file in test.txt test.pdf test.docx test.xlsx test.pptx; do
+          echo "--- $file (staged) ---"
+          git diff --cached -- "$file"
+          echo ""
         done
 
-    - name: Final diff summary
+    - name: Force text output for binary files
       run: |
         cd test_repo
-        echo "=== FINAL DIFF SUMMARY ==="
+        echo "=== FORCING TEXT OUTPUT ==="
         echo ""
         
-        echo "--- All changes summary ---"
-        git diff --stat
-        echo ""
+        # Force git to treat Office files as text
+        git config diff.pdf.binary false
+        git config diff.docx.binary false
+        git config diff.xlsx.binary false
+        git config diff.pptx.binary false
         
-        echo "--- Git status ---"
-        git status
-        echo ""
-        
-        echo "=== GIT DIFF TESTING COMPLETE ==="
+        echo "--- Forced text diff ---"
+        git diff
