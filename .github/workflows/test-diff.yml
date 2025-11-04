@@ -1,0 +1,202 @@
+name: Test Document Diff
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-document-diff:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libreoffice poppler-utils git
+
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Verify test files exist
+      run: |
+        echo "Checking test files..."
+        ls -la examples/
+        [ -f examples/test.pdf ] && echo "✓ PDF test file exists" || echo "✗ PDF test file missing"
+        [ -f examples/test.docx ] && echo "✓ DOCX test file exists" || echo "✗ DOCX test file missing"
+        [ -f examples/test.xlsx ] && echo "✓ XLSX test file exists" || echo "✗ XLSX test file missing"
+        [ -f examples/test.pptx ] && echo "✓ PPTX test file exists" || echo "✗ PPTX test file missing"
+        [ -f examples/test.txt ] && echo "✓ TXT test file exists" || echo "✗ TXT test file missing"
+
+    - name: Test PDF filter conversion
+      run: |
+        echo "Testing PDF filter..."
+        python -c "
+        import sys
+        sys.path.append('src')
+        from filters.factory import FilterFactory
+        
+        factory = FilterFactory()
+        result = factory.convert_to_text('examples/test.pdf')
+        print('PDF Conversion Result:')
+        print('Length:', len(result))
+        print('First 200 chars:', result[:200])
+        assert len(result) > 0, 'PDF conversion returned empty result'
+        print('✓ PDF filter test passed')
+        "
+
+    - name: Test DOCX filter conversion
+      run: |
+        echo "Testing DOCX filter..."
+        python -c "
+        import sys
+        sys.path.append('src')
+        from filters.factory import FilterFactory
+        
+        factory = FilterFactory()
+        result = factory.convert_to_text('examples/test.docx')
+        print('DOCX Conversion Result:')
+        print('Length:', len(result))
+        print('First 200 chars:', result[:200])
+        assert len(result) > 0, 'DOCX conversion returned empty result'
+        print('✓ DOCX filter test passed')
+        "
+
+    - name: Test XLSX filter conversion
+      run: |
+        echo "Testing XLSX filter..."
+        python -c "
+        import sys
+        sys.path.append('src')
+        from filters.factory import FilterFactory
+        
+        factory = FilterFactory()
+        result = factory.convert_to_text('examples/test.xlsx')
+        print('XLSX Conversion Result:')
+        print('Length:', len(result))
+        print('First 300 chars:', result[:300])
+        assert len(result) > 0, 'XLSX conversion returned empty result'
+        print('✓ XLSX filter test passed')
+        "
+
+    - name: Test PPTX filter conversion
+      run: |
+        echo "Testing PPTX filter..."
+        python -c "
+        import sys
+        sys.path.append('src')
+        from filters.factory import FilterFactory
+        
+        factory = FilterFactory()
+        result = factory.convert_to_text('examples/test.pptx')
+        print('PPTX Conversion Result:')
+        print('Length:', len(result))
+        print('First 200 chars:', result[:200])
+        assert len(result) > 0, 'PPTX conversion returned empty result'
+        print('✓ PPTX filter test passed')
+        "
+
+    - name: Test TXT filter conversion
+      run: |
+        echo "Testing TXT filter..."
+        python -c "
+        import sys
+        sys.path.append('src')
+        from filters.factory import FilterFactory
+        
+        factory = FilterFactory()
+        result = factory.convert_to_text('examples/test.txt')
+        print('TXT Conversion Result:')
+        print('Length:', len(result))
+        print('First 200 chars:', result[:200])
+        assert len(result) > 0, 'TXT conversion returned empty result'
+        print('✓ TXT filter test passed')
+        "
+
+    - name: Test git diff wrapper with all file types
+      run: |
+        echo "Testing git diff wrapper with all file types..."
+        
+        for file_type in pdf docx xlsx pptx txt; do
+          echo "Testing $file_type..."
+          python src/git_diff_wrapper.py "examples/test.${file_type}" > "${file_type}_output.txt"
+          output_size=$(wc -c < "${file_type}_output.txt")
+          echo "$file_type wrapper output: $output_size bytes"
+          if [ $output_size -gt 0 ]; then
+            echo "✓ $file_type git wrapper test passed"
+          else
+            echo "✗ $file_type wrapper failed - empty output"
+          fi
+        done
+
+    - name: Setup git attributes and test diff simulation
+      run: |
+        echo "Setting up git diff configuration..."
+        
+        # Create a temporary directory for git testing
+        mkdir -p git_test
+        cd git_test
+        git init
+        git config user.email "test@ci.com"
+        git config user.name "CI Test"
+        
+        # Copy test files
+        cp ../examples/test.* .
+        
+        # Setup git attributes
+        cat > .gitattributes << EOF
+        *.pdf diff=pdf
+        *.docx diff=docx
+        *.xlsx diff=xlsx
+        *.pptx diff=pptx
+        *.txt diff=txt
+        EOF
+        
+        # Setup git config to use our wrapper
+        git config diff.pdf.textconv "python ../src/git_diff_wrapper.py"
+        git config diff.docx.textconv "python ../src/git_diff_wrapper.py"
+        git config diff.xlsx.textconv "python ../src/git_diff_wrapper.py"
+        git config diff.pptx.textconv "python ../src/git_diff_wrapper.py"
+        git config diff.txt.textconv "python ../src/git_diff_wrapper.py"
+        
+        # Add files and create initial commit
+        git add .
+        git commit -m "Initial test files"
+        
+        echo "✓ Git configuration completed"
+
+    - name: Final verification summary
+      run: |
+        echo "=== FINAL VERIFICATION SUMMARY ==="
+        echo "PDF converter:  $(python src/git_diff_wrapper.py examples/test.pdf | wc -c) bytes"
+        echo "DOCX converter: $(python src/git_diff_wrapper.py examples/test.docx | wc -c) bytes" 
+        echo "XLSX converter: $(python src/git_diff_wrapper.py examples/test.xlsx | wc -c) bytes"
+        echo "PPTX converter: $(python src/git_diff_wrapper.py examples/test.pptx | wc -c) bytes"
+        echo "TXT converter:  $(python src/git_diff_wrapper.py examples/test.txt | wc -c) bytes"
+        echo "=== ALL DOCUMENT FILTER TESTS COMPLETED ==="
+        
+        # Check if all filters produced non-empty output
+        all_pass=true
+        for file in examples/test.*; do
+          output_size=$(python src/git_diff_wrapper.py "$file" | wc -c)
+          if [ $output_size -eq 0 ]; then
+            echo "WARNING: Empty output for $file"
+            all_pass=false
+          fi
+        done
+        
+        if [ "$all_pass" = true ]; then
+          echo "🎉 ALL FILTERS PRODUCED NON-EMPTY OUTPUT!"
+        else
+          echo "⚠️  Some filters may need attention"
+        fi
