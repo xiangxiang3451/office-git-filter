@@ -73,6 +73,12 @@ jobs:
         # Modify text file (easy to change)
         echo "MODIFIED: Additional content for diff testing" >> test.txt
         
+             # 配置git强制显示文本diff
+        git config diff.pdf.binary false
+        git config diff.docx.binary false  
+        git config diff.xlsx.binary false
+        git config diff.pptx.binary false
+        
         # Test git diff on each file type
         echo ""
         echo "--- Text File Diff ---"
