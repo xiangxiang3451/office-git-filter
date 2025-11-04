@@ -1,12 +1,6 @@
 
 # Office文档过滤器配置
 *.pdf diff=pdf
-*.doc diff=doc
 *.docx diff=docx
-*.xls diff=xls
 *.xlsx diff=xlsx
-*.ppt diff=ppt
 *.pptx diff=pptx
-*.odt diff=odt
-*.ods diff=ods
-*.odp diff=odp

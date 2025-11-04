@@ -6,18 +6,18 @@ from typing import Optional
 
 
 class BaseFilter(ABC):
-    """基础过滤器抽象类"""
+    """Base filter abstract class"""
 
     def __init__(self):
         self.supported_formats = []
 
     @abstractmethod
     def to_text(self, file_path: str) -> Optional[str]:
-        """将文件转换为纯文本"""
+        """Convert file to plain text"""
         pass
 
     def can_handle(self, file_path: str) -> bool:
-        """检查是否支持该文件类型"""
+        """Check if the file type is supported"""
         if not os.path.exists(file_path):
             return False
 
@@ -25,7 +25,7 @@ class BaseFilter(ABC):
         return ext in self.supported_formats
 
     def run_command(self, command: list) -> tuple:
-        """运行外部命令"""
+        """Execute external command"""
         try:
             result = subprocess.run(
                 command,

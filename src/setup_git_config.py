@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-设置Git配置以使用文档过滤器
+Set up Git configuration to use document filters
 """
 
 import os
@@ -9,16 +9,16 @@ import sys
 
 
 def setup_git_config():
-    """设置Git配置"""
+    """Configure Git settings"""
 
-    # 获取当前脚本所在目录
+    # Get the directory where the current script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     diff_wrapper = os.path.join(script_dir, "git_diff_wrapper.py")
 
-    # 设置Git属性
+    # Set Git attributes
     gitattributes = """
-# Office文档过滤器配置
+# Office document filter configuration
 *.pdf diff=pdf
 *.doc diff=doc
 *.docx diff=docx
@@ -31,11 +31,11 @@ def setup_git_config():
 *.odp diff=odp
 """
 
-    # 写入.gitattributes文件
+    # Write .gitattributes file
     with open('.gitattributes', 'w') as f:
         f.write(gitattributes)
 
-    # 设置Git diff配置
+    # Configure Git diff settings
     subprocess.run([
         'git', 'config', 'diff.pdf.textconv',
         f'python "{diff_wrapper}"'
@@ -49,9 +49,9 @@ def setup_git_config():
         f'python "{diff_wrapper}"'
     ])
 
-    # 类似的配置其他格式...
-    print("Git配置已完成！")
-    print("请确保将.gitattributes文件添加到版本控制中")
+    # Similar configuration for other formats...
+    print("Git configuration completed!")
+    print("Please make sure to add the .gitattributes file to version control")
 
 
 if __name__ == "__main__":

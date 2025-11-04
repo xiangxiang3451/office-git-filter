@@ -6,7 +6,7 @@ from .text_filter import TextFilter
 
 
 class FilterFactory:
-    """过滤器工厂类"""
+    """Filter factory class"""
 
     def __init__(self):
         self.filters = [
@@ -16,18 +16,18 @@ class FilterFactory:
         ]
 
     def get_filter(self, file_path: str) -> BaseFilter:
-        """获取适合文件的过滤器"""
+        """Get appropriate filter for the file"""
         for filter_obj in self.filters:
             if filter_obj.can_handle(file_path):
                 return filter_obj
 
-        # 默认返回文本过滤器
+        # Return text filter by default
         return TextFilter()
 
     def convert_to_text(self, file_path: str) -> str:
-        """转换文件为文本"""
+        """Convert file to text"""
         if not os.path.exists(file_path):
-            return f"[文件不存在: {file_path}]"
+            return f"[File does not exist: {file_path}]"
 
         filter_obj = self.get_filter(file_path)
         return filter_obj.to_text(file_path)

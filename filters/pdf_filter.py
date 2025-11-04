@@ -9,29 +9,29 @@ except ImportError:
 
 
 class PDFFilter(BaseFilter):
-    """PDF文件过滤器"""
+    """PDF file filter"""
 
     def __init__(self):
         super().__init__()
         self.supported_formats = ['.pdf']
 
     def to_text(self, file_path: str) -> str:
-        """提取PDF文本内容"""
+        """Extract PDF text content"""
         text = ""
 
-        # 方法1: 使用pdftotext (优先)
+        # Method 1: Use pdftotext
         text = self._use_pdftotext(file_path)
         if text:
             return text
 
-        # 方法2: 使用PyPDF2 (备用)
+        # Method 2: Use PyPDF2
         if PyPDF2:
             text = self._use_pypdf2(file_path)
 
-        return text or f"[PDF文件: {os.path.basename(file_path)}]"
+        return text or f"[PDF file: {os.path.basename(file_path)}]"
 
     def _use_pdftotext(self, file_path: str) -> str:
-        """使用pdftotext工具"""
+        """Use pdftotext tool"""
         try:
             result = subprocess.run(
                 ['pdftotext', '-layout', file_path, '-'],
@@ -44,7 +44,7 @@ class PDFFilter(BaseFilter):
             return ""
 
     def _use_pypdf2(self, file_path: str) -> str:
-        """使用PyPDF2库"""
+        """Use PyPDF2 library"""
         try:
             text = ""
             with open(file_path, 'rb') as file:
