@@ -1,4 +1,4 @@
-name: Test Git Document Diff
+name: Test Git Document Diff Output
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  test-git-diff:
+  test-git-diff-output:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,18 +19,18 @@ jobs:
       with:
         python-version: '3.10'
 
-#    - name: Install system dependencies
-#      run: |
-#        sudo apt-get update
-#        sudo apt-get install -y libreoffice poppler-utils git
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libreoffice poppler-utils git
 
     - name: Install Python dependencies
       run: |
         pip install -r requirements.txt
 
-    - name: Create test git repository with document files
+    - name: Setup test git repository
       run: |
-        # Create a clean test environment
+        # Create clean test environment
         rm -rf test_repo
         mkdir test_repo
         cd test_repo
@@ -40,7 +40,7 @@ jobs:
         git config user.email "test@ci.com"
         git config user.name "CI Test"
         
-        # Copy test documents from examples
+        # Copy test documents
         cp ../examples/test.* .
         
         # Configure git attributes for document diff
@@ -52,7 +52,7 @@ jobs:
         *.txt diff=text
         EOF
         
-        # Configure diff drivers to use our wrapper
+        # Configure diff drivers
         git config diff.pdf.textconv "python ../src/git_diff_wrapper.py"
         git config diff.docx.textconv "python ../src/git_diff_wrapper.py"
         git config diff.xlsx.textconv "python ../src/git_diff_wrapper.py"
@@ -60,116 +60,100 @@ jobs:
         
         # Initial commit
         git add .
-        git commit -m "Initial commit: all test documents"
+        git commit -m "Initial commit with test documents"
 
-    - name: Test Git Diff with modified documents
+    - name: Test direct wrapper output
+      run: |
+        echo "=== DIRECT WRAPPER OUTPUT ==="
+        echo ""
+        
+        for file_type in pdf docx xlsx pptx txt; do
+          echo "--- $file_type wrapper raw output ---"
+          python src/git_diff_wrapper.py "examples/test.$file_type"
+          echo ""
+          echo "----------------------------------------"
+          echo ""
+        done
+
+    - name: Create modified versions and test git diff
       run: |
         cd test_repo
-        echo "=== TESTING GIT DIFF WITH DOCUMENT FILES ==="
+        echo "=== GIT DIFF OUTPUT AFTER MODIFICATIONS ==="
+        echo ""
         
-        # Create modified versions of files
-        echo "Creating modified versions for diff testing..."
+        # Modify files to create differences
+        echo "=== MODIFICATIONS ===" >> test.txt
+        echo "Modified content for diff testing" >> test.txt
         
-        # Modify text file (easy to change)
-        echo "MODIFIED: Additional content for diff testing" >> test.txt
-        
-             # 配置git强制显示文本diff
-        git config diff.pdf.binary false
-        git config diff.docx.binary false  
-        git config diff.xlsx.binary false
-        git config diff.pptx.binary false
-        
-        # Test git diff on each file type
         echo ""
         echo "--- Text File Diff ---"
         git diff test.txt
-        
         echo ""
-        echo "--- PDF File Diff ---" 
-        git diff test.pdf || echo "PDF diff may show binary difference"
         
+        echo "--- PDF File Diff ---"
+        git diff test.pdf
         echo ""
+        
         echo "--- DOCX File Diff ---"
-        git diff test.docx || echo "DOCX diff may show binary difference"
-        
+        git diff test.docx
         echo ""
+        
         echo "--- XLSX File Diff ---"
-        git diff test.xlsx || echo "XLSX diff may show binary difference"
-        
+        git diff test.xlsx
         echo ""
+        
         echo "--- PPTX File Diff ---"
-        git diff test.pptx || echo "PPTX diff may show binary difference"
+        git diff test.pptx
+        echo ""
 
-    - name: Test Git Diff with textconv option
+    - name: Test git diff with textconv
       run: |
         cd test_repo
-        echo "=== TESTING GIT DIFF WITH TEXTCONV ==="
-        
-        # Test --textconv option which should use our filters
+        echo "=== GIT DIFF WITH TEXTCONV ==="
         echo ""
-        echo "--- PDF Diff with Text Conversion ---"
-        git diff --textconv HEAD -- test.pdf 2>/dev/null | head -50 || echo "PDF textconv may not show content differences"
         
-        echo ""
-        echo "--- DOCX Diff with Text Conversion ---"
-        git diff --textconv HEAD -- test.docx 2>/dev/null | head -50 || echo "DOCX textconv may not show content differences"
-        
-        echo ""
-        echo "--- XLSX Diff with Text Conversion ---"
-        git diff --textconv HEAD -- test.xlsx 2>/dev/null | head -50 || echo "XLSX textconv may not show content differences"
-        
-        echo ""
-        echo "--- PPTX Diff with Text Conversion ---"
-        git diff --textconv HEAD -- test.pptx 2>/dev/null | head -50 || echo "PPTX textconv may not show content differences"
-
-    - name: Verify diff configuration
-      run: |
-        cd test_repo
-        echo "=== VERIFYING GIT DIFF CONFIGURATION ==="
-        
-        # Check git attributes
-        echo ""
-        echo "--- Git Attributes ---"
-        git check-attr -a test.pdf
-        git check-attr -a test.docx
-        git check-attr -a test.xlsx
-        git check-attr -a test.pptx
-        
-        # Check diff driver configuration
-        echo ""
-        echo "--- Diff Driver Configuration ---"
-        for format in pdf docx xlsx pptx; do
-          driver=$(git config --get diff.${format}.textconv || echo "Not configured")
-          echo "diff.${format}.textconv = ${driver}"
+        for file_type in pdf docx xlsx pptx; do
+          echo "--- $file_type diff with textconv ---"
+          git diff --textconv HEAD -- "test.$file_type"
+          echo ""
+          echo "----------------------------------------"
+          echo ""
         done
 
-    - name: Test direct wrapper execution
+    - name: Test staged changes diff
       run: |
-        echo "=== TESTING DIRECT WRAPPER EXECUTION ==="
+        cd test_repo
+        echo "=== STAGED CHANGES DIFF ==="
+        echo ""
         
-        # Test that the wrapper can be executed for each file type
+        # Stage all changes
+        git add .
+        
+        echo "--- Staged diff for all files ---"
+        git diff --staged
+        echo ""
+        
+        echo "--- Individual staged diffs ---"
         for file_type in pdf docx xlsx pptx txt; do
-          file="examples/test.${file_type}"
-          if [ -f "$file" ]; then
+          if [ -f "test.$file_type" ]; then
+            echo "--- Staged: test.$file_type ---"
+            git diff --staged -- "test.$file_type"
             echo ""
-            echo "--- Testing wrapper on ${file_type} ---"
-            python src/git_diff_wrapper.py "$file" > /dev/null
-            if [ $? -eq 0 ]; then
-              echo "✓ ${file_type} wrapper executed successfully"
-            else
-              echo "✗ ${file_type} wrapper execution failed"
-            fi
           fi
         done
 
-    - name: Final results
+    - name: Final diff summary
       run: |
-        echo "=== GIT DOCUMENT DIFF TESTING COMPLETE ==="
+        cd test_repo
+        echo "=== FINAL DIFF SUMMARY ==="
         echo ""
-        echo "SUMMARY:"
-        echo "✅ Git repository configured with document diff filters"
-        echo "✅ Git attributes and diff drivers properly set up"
-        echo "✅ Document diff system ready for use"
+        
+        echo "--- All changes summary ---"
+        git diff --stat
         echo ""
-        echo "Your Git office file diff is now working!"
-        echo "When you commit office files, use 'git diff' to see text changes."
+        
+        echo "--- Git status ---"
+        git status
+        echo ""
+        
+        echo "=== GIT DIFF TESTING COMPLETE ==="
