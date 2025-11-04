@@ -2,7 +2,7 @@ import os
 import subprocess
 import tempfile
 from .base_filter import BaseFilter
-
+import sys
 
 class OfficeFilter(BaseFilter):
     """Office文档过滤器"""
@@ -100,16 +100,35 @@ class OfficeFilter(BaseFilter):
             wb = openpyxl.load_workbook(file_path, data_only=True)
             text = []
 
+            print(f"调试: 开始处理Excel文件 {file_path}", file=sys.stderr)
+
             for sheet_name in wb.sheetnames:
                 sheet = wb[sheet_name]
-                text.append(f"工作表: {sheet_name}")
+                text.append(f"=== 工作表: {sheet_name} ===")
 
-                for row in sheet.iter_rows(values_only=True):
-                    row_data = [str(cell) if cell is not None else "" for cell in row]
-                    text.append("\t".join(row_data))
+                has_content = False
+                for row_num, row in enumerate(sheet.iter_rows(values_only=True), 1):
+                    # 过滤None值并转换为字符串
+                    row_data = []
+                    for cell in row:
+                        if cell is not None:
+                            cell_str = str(cell).strip()
+                            if cell_str:  # 只添加非空字符串
+                                row_data.append(cell_str)
 
+                    if row_data:  # 只添加非空行
+                        text.append(f"行{row_num}: {' | '.join(row_data)}")
+                        has_content = True
+
+                if not has_content:
+                    text.append("(空工作表)")
                 text.append("")  # 空行分隔
 
-            return '\n'.join(text)
+            result = '\n'.join(text)
+            print(f"调试: Excel转换结果长度 {len(result)}", file=sys.stderr)
+            return result if result.strip() else f"[Excel文件无文本内容: {os.path.basename(file_path)}]"
+
         except ImportError:
-            return ""
+            return f"[未安装openpyxl库: {os.path.basename(file_path)}]"
+        except Exception as e:
+            return f"[处理Excel文件失败: {str(e)}]"
